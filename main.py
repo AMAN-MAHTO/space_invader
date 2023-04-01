@@ -34,7 +34,7 @@ class Player(pygame.sprite.Sprite):
             self.last_fire_time = pygame.time.get_ticks()
         
             
-    def repostion(self):
+    def reposition(self):
         self.rect = self.image.get_rect(midbottom = (screen_weidth//2,screen_height))
     def update(self):
         self.current_time = pygame.time.get_ticks()
@@ -209,7 +209,7 @@ while True:
                 game_active = True
                 life = 3
                 score =0
-                player.sprite.repostion()
+                player.sprite.reposition()
 
 
     #background
@@ -229,7 +229,7 @@ while True:
 
         current_score = score
         if score%50 == 0 and score != 0 and current_score != updated_score:
-            print("level up")
+            
             enemy_spawing_time_constant -= 0.3
             enemy_speed += 0.5
             enemy_bullet_speed += 0.2
