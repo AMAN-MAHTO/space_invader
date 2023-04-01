@@ -27,10 +27,11 @@ class Player(pygame.sprite.Sprite):
     
     def fire(self):
         keys = pygame.key.get_pressed()
-       
-        if keys[pygame.K_SPACE] and self.current_time - self.last_fire_time > 200:
-            bullet_group.add(Bullet('player',(self.rect.midtop)))
+        mouse_input = pygame.mouse.get_pressed(num_buttons=3)
+        if (mouse_input[0] or keys[pygame.K_SPACE]) and self.current_time - self.last_fire_time > 200:
+            bullet_player_group.add(Bullet_player((self.rect.midtop)))
             self.last_fire_time = pygame.time.get_ticks()
+        
             
 
     def update(self):
@@ -38,52 +39,48 @@ class Player(pygame.sprite.Sprite):
         self.move()
         self.fire()
 
-class Bullet(pygame.sprite.Sprite):
-    def __init__(self,type,position,color = 'yellow'):
+class Bullet_player(pygame.sprite.Sprite):
+    def __init__(self,position):
         super().__init__()
-        
-
         yellow_bullet = pygame.image.load("assets/pixel_laser_yellow.png")
+        self.image = yellow_bullet
+        self.rect = self.image.get_rect(midbottom = position)
+        self.type = "player_bullet"
+        
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def update(self):
+        self.rect.y -= 5
+        if self.rect.bottom < 0:
+            self.kill()
+
+class Bullet_enemy(pygame.sprite.Sprite):
+    def __init__(self,position,color = 'yellow'):
+        super().__init__()
+        self.enemy_bullet_speed = 4
         green_bullet = pygame.image.load("assets/pixel_laser_green.png")
         blue_bullet = pygame.image.load("assets/pixel_laser_blue.png")
         red_bullet = pygame.image.load("assets/pixel_laser_red.png")
-        if type== "player":
-            self.image = yellow_bullet
-            self.rect = self.image.get_rect(midbottom = position)
-            self.type = "player_bullet"
+        
+        if color =='red':
+            self.image = red_bullet
+        elif color == "blue":
+            self.image =blue_bullet
         else:
-            if color =='red':
-                self.image = red_bullet
-            elif color == "blue":
-                self.image =blue_bullet
-            else:
-                self.image = green_bullet
-            self.rect = self.image.get_rect(midtop = position)
-            self.type = "enemy_bullet"
+            self.image = green_bullet
+        self.rect = self.image.get_rect(center = position)
+        self.type = "enemy_bullet"
         self.mask = pygame.mask.from_surface(self.image)
-            
-        
-        
     
-    def move(self):
-        if self.type == "player_bullet":
-            self.rect.y -= 5
-        else:
-            self.rect.y += 5
-
-    def delete(self):
+    def update(self):
+        self.rect.y += self.enemy_bullet_speed
         if self.rect.bottom < 0:
             self.kill()
-            
-
-    def update(self):
-        self.move()
-        self.delete()
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.enemy_speed =2
+        self.enemy_speed = 1
         self.current_time = 0
         self.last_fire_time = 0
         blue_ship = pygame.image.load("assets/pixel_ship_blue_small.png")
@@ -91,18 +88,24 @@ class Enemy(pygame.sprite.Sprite):
         red_ship = pygame.image.load("assets/pixel_ship_red_small.png")
         
         self.image,self.color = choice([(blue_ship,'blue'),(red_ship,'red'),(green_ship,'green')])
-        self.rect = self.image.get_rect(midbottom = (randrange(35,screen_weidth-20,35),0) )
+        self.rect = self.image.get_rect(midbottom = (randrange(35,screen_weidth-20,50),0) )
         self.mask = pygame.mask.from_surface(self.image)
 
     def move(self):
         self.rect.y += self.enemy_speed
+
     def delete(self):
+        global score
+        if pygame.sprite.spritecollide(self,bullet_player_group,False):
+            if pygame.sprite.spritecollide(self,bullet_player_group,True,pygame.sprite.collide_mask):
+                score += 10
+                self.kill()
         if self.rect.top > screen_height:
             self.kill()
 
     def fire(self):
-        if self.current_time - self.last_fire_time > 1000:
-            bullet_group.add(Bullet('enemy',(self.rect.midbottom),color = self.color))
+        if self.current_time - self.last_fire_time > 3000:
+            bullet_enemy_group.add(Bullet_enemy((self.rect.center),color = self.color))
             self.last_fire_time = pygame.time.get_ticks()
 
     def update(self):
@@ -114,32 +117,43 @@ class Enemy(pygame.sprite.Sprite):
 
 def collision():
     global life
-    # print(f"collision - {life}")
-    if pygame.sprite.spritecollide(player.sprite,bullet_group,True):
-        if pygame.sprite.spritecollide(player.sprite,bullet_group,True,pygame.sprite.collide_mask):
-            
-            print("collide")
-        
-        
+    if pygame.sprite.spritecollide(player.sprite,bullet_enemy_group,False):
+        if pygame.sprite.spritecollide(player.sprite,bullet_enemy_group,True,pygame.sprite.collide_mask):
+            if life< 1:
+                enemy_group.empty()
+                bullet_enemy_group.empty()
+                bullet_player_group.empty()
+                
+                return False
+            else:
+                life -= 1
+                return True
+        return True
         
     else:
         return True
 #-------#
 screen_weidth = 550
-screen_height = 820
+screen_height = 850
 game_active = True
-life = 3
+life = 5
+score = 0
 
 #game init
 pygame.init()
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode((screen_weidth,screen_height))
 
+#font
+text_font = pygame.font.Font(None,34)
+
+
 #group
 player = pygame.sprite.GroupSingle()
 player.add(Player())
 
-bullet_group = pygame.sprite.Group()
+bullet_enemy_group = pygame.sprite.Group()
+bullet_player_group = pygame.sprite.Group()
 
 enemy_group = pygame.sprite.Group()
 
@@ -151,7 +165,7 @@ bg_rect  = bg_surf.get_rect(topleft = (0,0))
 
 #spawing timer
 enemy_spawing_time = pygame.USEREVENT + 1
-pygame.time.set_timer(enemy_spawing_time,1000)
+pygame.time.set_timer(enemy_spawing_time,2000)
 
 
 while True:
@@ -168,10 +182,15 @@ while True:
 
 
     #background
-    screen.blit(bg_surf,bg_rect)        
+    screen.blit(bg_surf,bg_rect)
+    print(life)
+          
     if game_active:
-        bullet_group.draw(screen)
-        bullet_group.update()
+        bullet_enemy_group.draw(screen)
+        bullet_enemy_group.update()
+
+        bullet_player_group.draw(screen)
+        bullet_player_group.update()
 
         player.draw(screen)
         player.update() 
@@ -179,10 +198,20 @@ while True:
         enemy_group.draw(screen)
         enemy_group.update()
 
+        score_text = text_font.render(f"Score: {score}",False,'red')
+        score_rect = score_text.get_rect(center = (225,20))
+        screen.blit(score_text,score_rect)
+        life_text = text_font.render(f"life: {life}",False,'red')
+        life_rect = life_text.get_rect(center = (50,20))
+        screen.blit(life_text,life_rect)
         game_active = collision()
     else:
-        
-        pass     
+        screen.blit(score_text,score_rect)
+        life_rect = life_text.get_rect(center = (50,20))
+        life = 3
+        score =0
+       
+            
     
     pygame.display.update()
     clock.tick(60)
