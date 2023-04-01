@@ -252,7 +252,7 @@ while True:
         enemy_group.update()
 
         current_score = score
-        if score%10 == 0 and score != 0 and current_score != updated_score:
+        if score%50 == 0 and score != 0 and current_score != updated_score:
             
             enemy_spawing_time_constant -= 0.5
             enemy_speed += 0.17
