@@ -9,11 +9,14 @@ class Player(pygame.sprite.Sprite):
         self.current_time = 0
         self.last_fire_time = 0
         self.player_speed = player_speed
-        player_ship = pygame.image.load("assets/pixel_ship_yellow.png")
+        player_ship = pygame.image.load("assets/pixel_ship_yellow.png").convert_alpha()
         self.image = player_ship
         self.rect = self.image.get_rect(midbottom = (screen_weidth//2,screen_height))
         self.mask = pygame.mask.from_surface(self.image)
-        
+
+        self.fire_sound = pygame.mixer.Sound("sound/pewpew_9.wav")
+        self.mouse_down = 0
+        self.space_down = 0
     
     def move(self):
         keys = pygame.key.get_pressed()
@@ -28,10 +31,16 @@ class Player(pygame.sprite.Sprite):
     
     def fire(self):
         keys = pygame.key.get_pressed()
-        mouse_input = pygame.mouse.get_pressed(num_buttons=3)
-        if (mouse_input[0] or keys[pygame.K_SPACE]) and self.current_time - self.last_fire_time > 200:
-            bullet_player_group.add(Bullet_player((self.rect.midtop)))
+        mouse_input_down = pygame.mouse.get_pressed()
+        
+        if (mouse_input_down[0] or keys[pygame.K_SPACE]) and self.current_time - self.last_fire_time > 200 and self.mouse_down == False and self.space_down == False :
+            bullet_player_group.add(Bullet_player((self.rect.center)))
+            self.fire_sound.play()
             self.last_fire_time = pygame.time.get_ticks()
+            self.mouse_down = True
+        self.mouse_down = mouse_input_down[0]
+        self.space_down = keys[pygame.K_SPACE]
+        
         
             
     def reposition(self):
@@ -46,7 +55,7 @@ class Bullet_player(pygame.sprite.Sprite):
         super().__init__()
         global player_bullet_speed
         self.player_bullet_speed = player_bullet_speed
-        yellow_bullet = pygame.image.load("assets/pixel_laser_yellow.png")
+        yellow_bullet = pygame.image.load("assets/pixel_laser_yellow.png").convert_alpha()
         self.image = yellow_bullet
         self.rect = self.image.get_rect(midbottom = position)
         self.type = "player_bullet"
@@ -63,9 +72,9 @@ class Bullet_enemy(pygame.sprite.Sprite):
         super().__init__()
         global enemy_bullet_speed
         self.enemy_bullet_speed = enemy_bullet_speed
-        green_bullet = pygame.image.load("assets/pixel_laser_green.png")
-        blue_bullet = pygame.image.load("assets/pixel_laser_blue.png")
-        red_bullet = pygame.image.load("assets/pixel_laser_red.png")
+        green_bullet = pygame.image.load("assets/pixel_laser_green.png").convert_alpha()
+        blue_bullet = pygame.image.load("assets/pixel_laser_blue.png").convert_alpha()
+        red_bullet = pygame.image.load("assets/pixel_laser_red.png").convert_alpha()
         
         if color =='red':
             self.image = red_bullet
@@ -79,7 +88,9 @@ class Bullet_enemy(pygame.sprite.Sprite):
     
     def update(self):
         global life
+        
         self.rect.y += self.enemy_bullet_speed
+        
         #if enemy bullet collide with player, life -1, bullet kill himself
         if pygame.sprite.spritecollide(self,player,False):
             if pygame.sprite.spritecollide(self,player,False,pygame.sprite.collide_mask):
@@ -97,17 +108,18 @@ class Enemy(pygame.sprite.Sprite):
         self.enemy_speed = enemy_speed
         self.current_time = 0
         self.last_fire_time = 0
-        blue_ship = pygame.image.load("assets/pixel_ship_blue_small.png")
-        green_ship = pygame.image.load("assets/pixel_ship_green_small.png")
-        red_ship = pygame.image.load("assets/pixel_ship_red_small.png")
+        blue_ship = pygame.image.load("assets/pixel_ship_blue_small.png").convert_alpha()
+        green_ship = pygame.image.load("assets/pixel_ship_green_small.png").convert_alpha()
+        red_ship = pygame.image.load("assets/pixel_ship_red_small.png").convert_alpha()
         
         self.image,self.color = choice([(blue_ship,'blue'),(red_ship,'red'),(green_ship,'green')])
         self.rect = self.image.get_rect(midbottom = (randrange(35,screen_weidth-20,50),0) )
         self.mask = pygame.mask.from_surface(self.image)
 
-    def move(self):
-        self.rect.y += self.enemy_speed
+        self.enemy_fire_sound = pygame.mixer.Sound("sound/pewpew_2.wav")
+        self.enemy_fire_sound.set_volume(0.4)
 
+    
     def delete(self):
         global score,life
         #if enemy collide with player bullet, kill himself, player score +10
@@ -128,11 +140,13 @@ class Enemy(pygame.sprite.Sprite):
     def fire(self):
         if self.current_time - self.last_fire_time > 3000:
             bullet_enemy_group.add(Bullet_enemy((self.rect.center),color = self.color))
+            self.enemy_fire_sound.play()
             self.last_fire_time = pygame.time.get_ticks()
 
     def update(self):
+        
         self.current_time = pygame.time.get_ticks()
-        self.move()
+        self.rect.y += self.enemy_speed
         self.delete()
         self.fire()
 
@@ -171,9 +185,9 @@ clock = pygame.time.Clock()
 screen = pygame.display.set_mode((screen_weidth,screen_height))
 
 #font
-text_font = pygame.font.Font(None,34)
+text_font = pygame.font.Font("font/game_font.ttf",15)
 game_over_text = text_font.render("Press space to start the battle",False,'red')
-game_over_rect = game_over_text.get_rect(center = (225,425))
+game_over_rect = game_over_text.get_rect(center = (screen_weidth//2,screen_height//2))
 
 
 #group
@@ -207,8 +221,18 @@ while True:
         else:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 game_active = True
-                life = 3
-                score =0
+                life = 5
+                score = 0
+                current_score = 0
+                updated_score = 1
+                level = 0
+                enemy_spawing_time_constant = 3
+                enemy_speed = 1
+                enemy_bullet_speed = 4
+
+                player_bullet_speed = 5
+                player_speed =3
+
                 player.sprite.reposition()
 
 
@@ -228,14 +252,14 @@ while True:
         enemy_group.update()
 
         current_score = score
-        if score%50 == 0 and score != 0 and current_score != updated_score:
+        if score%10 == 0 and score != 0 and current_score != updated_score:
             
-            enemy_spawing_time_constant -= 0.3
-            enemy_speed += 0.5
-            enemy_bullet_speed += 0.2
+            enemy_spawing_time_constant -= 0.5
+            enemy_speed += 0.17
+            enemy_bullet_speed += 0.3
 
-            player_bullet_speed += 0.2
-            player_speed += 0.5
+            player_bullet_speed += 0.3
+            player_speed += 0.17
             updated_score = score
 
 
@@ -243,7 +267,7 @@ while True:
         score_rect = score_text.get_rect(center = (225,20))
         screen.blit(score_text,score_rect)
         life_text = text_font.render(f"life: {life}",False,'red')
-        life_rect = life_text.get_rect(center = (50,20))
+        life_rect = life_text.get_rect(center = (70,20))
         screen.blit(life_text,life_rect)
         
         game_active = player_alive()   
