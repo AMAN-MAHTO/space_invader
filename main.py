@@ -5,9 +5,10 @@ from random import randrange,choice
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
+        global player_speed
         self.current_time = 0
         self.last_fire_time = 0
-        self.player_speed = 3
+        self.player_speed = player_speed
         player_ship = pygame.image.load("assets/pixel_ship_yellow.png")
         self.image = player_ship
         self.rect = self.image.get_rect(midbottom = (screen_weidth//2,screen_height))
@@ -33,7 +34,8 @@ class Player(pygame.sprite.Sprite):
             self.last_fire_time = pygame.time.get_ticks()
         
             
-
+    def repostion(self):
+        self.rect = self.image.get_rect(midbottom = (screen_weidth//2,screen_height))
     def update(self):
         self.current_time = pygame.time.get_ticks()
         self.move()
@@ -42,6 +44,8 @@ class Player(pygame.sprite.Sprite):
 class Bullet_player(pygame.sprite.Sprite):
     def __init__(self,position):
         super().__init__()
+        global player_bullet_speed
+        self.player_bullet_speed = player_bullet_speed
         yellow_bullet = pygame.image.load("assets/pixel_laser_yellow.png")
         self.image = yellow_bullet
         self.rect = self.image.get_rect(midbottom = position)
@@ -50,14 +54,15 @@ class Bullet_player(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
 
     def update(self):
-        self.rect.y -= 5
+        self.rect.y -= self.player_bullet_speed
         if self.rect.bottom < 0:
             self.kill()
 
 class Bullet_enemy(pygame.sprite.Sprite):
     def __init__(self,position,color = 'yellow'):
         super().__init__()
-        self.enemy_bullet_speed = 4
+        global enemy_bullet_speed
+        self.enemy_bullet_speed = enemy_bullet_speed
         green_bullet = pygame.image.load("assets/pixel_laser_green.png")
         blue_bullet = pygame.image.load("assets/pixel_laser_blue.png")
         red_bullet = pygame.image.load("assets/pixel_laser_red.png")
@@ -73,14 +78,23 @@ class Bullet_enemy(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
     
     def update(self):
+        global life
         self.rect.y += self.enemy_bullet_speed
+        #if enemy bullet collide with player, life -1, bullet kill himself
+        if pygame.sprite.spritecollide(self,player,False):
+            if pygame.sprite.spritecollide(self,player,False,pygame.sprite.collide_mask):
+                life -= 1
+                self.kill()
+                
+        
         if self.rect.bottom < 0:
             self.kill()
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.enemy_speed = 1
+        global enemy_speed
+        self.enemy_speed = enemy_speed
         self.current_time = 0
         self.last_fire_time = 0
         blue_ship = pygame.image.load("assets/pixel_ship_blue_small.png")
@@ -95,12 +109,20 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.y += self.enemy_speed
 
     def delete(self):
-        global score
+        global score,life
+        #if enemy collide with player bullet, kill himself, player score +10
         if pygame.sprite.spritecollide(self,bullet_player_group,False):
             if pygame.sprite.spritecollide(self,bullet_player_group,True,pygame.sprite.collide_mask):
                 score += 10
                 self.kill()
+        #if enemy collide with player, kill himself, player life -1
+        if pygame.sprite.spritecollide(self,player,False):
+            if pygame.sprite.spritecollide(self,player,False,pygame.sprite.collide_mask):
+                life -= 1
+                self.kill()
+        
         if self.rect.top > screen_height:
+            life -= 1
             self.kill()
 
     def fire(self):
@@ -115,29 +137,33 @@ class Enemy(pygame.sprite.Sprite):
         self.fire()
 
 
-def collision():
+def player_alive():
     global life
-    if pygame.sprite.spritecollide(player.sprite,bullet_enemy_group,False):
-        if pygame.sprite.spritecollide(player.sprite,bullet_enemy_group,True,pygame.sprite.collide_mask):
-            if life< 1:
-                enemy_group.empty()
-                bullet_enemy_group.empty()
-                bullet_player_group.empty()
-                
-                return False
-            else:
-                life -= 1
-                return True
-        return True
+    if life< 1:
+        enemy_group.empty()
+        bullet_enemy_group.empty()
+        bullet_player_group.empty()
+        return False
         
     else:
         return True
+        
 #-------#
 screen_weidth = 550
 screen_height = 850
 game_active = True
 life = 5
 score = 0
+current_score = 0
+updated_score = 1
+level = 0
+enemy_spawing_time_constant = 3
+enemy_speed = 1
+enemy_bullet_speed = 4
+
+player_bullet_speed = 5
+player_speed =3
+
 
 #game init
 pygame.init()
@@ -146,6 +172,8 @@ screen = pygame.display.set_mode((screen_weidth,screen_height))
 
 #font
 text_font = pygame.font.Font(None,34)
+game_over_text = text_font.render("Press space to start the battle",False,'red')
+game_over_rect = game_over_text.get_rect(center = (225,425))
 
 
 #group
@@ -165,7 +193,7 @@ bg_rect  = bg_surf.get_rect(topleft = (0,0))
 
 #spawing timer
 enemy_spawing_time = pygame.USEREVENT + 1
-pygame.time.set_timer(enemy_spawing_time,2000)
+pygame.time.set_timer(enemy_spawing_time,enemy_spawing_time_constant*1000)
 
 
 while True:
@@ -179,12 +207,13 @@ while True:
         else:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 game_active = True
+                life = 3
+                score =0
+                player.sprite.repostion()
 
 
     #background
     screen.blit(bg_surf,bg_rect)
-    print(life)
-          
     if game_active:
         bullet_enemy_group.draw(screen)
         bullet_enemy_group.update()
@@ -198,18 +227,33 @@ while True:
         enemy_group.draw(screen)
         enemy_group.update()
 
+        current_score = score
+        if score%50 == 0 and score != 0 and current_score != updated_score:
+            print("level up")
+            enemy_spawing_time_constant -= 0.3
+            enemy_speed += 0.5
+            enemy_bullet_speed += 0.2
+
+            player_bullet_speed += 0.2
+            player_speed += 0.5
+            updated_score = score
+
+
         score_text = text_font.render(f"Score: {score}",False,'red')
         score_rect = score_text.get_rect(center = (225,20))
         screen.blit(score_text,score_rect)
         life_text = text_font.render(f"life: {life}",False,'red')
         life_rect = life_text.get_rect(center = (50,20))
         screen.blit(life_text,life_rect)
-        game_active = collision()
+        
+        game_active = player_alive()   
+        
     else:
+        
+        screen.blit(game_over_text,game_over_rect)
+        screen.blit(life_text,life_rect)
         screen.blit(score_text,score_rect)
-        life_rect = life_text.get_rect(center = (50,20))
-        life = 3
-        score =0
+        
        
             
     
