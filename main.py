@@ -183,6 +183,9 @@ player_speed =3
 pygame.init()
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode((screen_weidth,screen_height))
+pygame.display.set_caption("SPACE INVADER")
+game_icon = pygame.image.load("assets/spaceship.png")
+pygame.display.set_icon(game_icon)
 
 #font
 text_font = pygame.font.Font("font/game_font.ttf",15)
@@ -204,6 +207,7 @@ enemy_group = pygame.sprite.Group()
 bg_surf = pygame.image.load("assets/background-black.png")
 bg_surf = pygame.transform.scale(bg_surf,(screen_weidth,screen_height))
 bg_rect  = bg_surf.get_rect(topleft = (0,0))
+
 
 #spawing timer
 enemy_spawing_time = pygame.USEREVENT + 1
@@ -238,6 +242,7 @@ while True:
 
     #background
     screen.blit(bg_surf,bg_rect)
+
     if game_active:
         bullet_enemy_group.draw(screen)
         bullet_enemy_group.update()
